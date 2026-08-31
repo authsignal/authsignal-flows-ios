@@ -10,10 +10,10 @@ public class AuthsignalEmail {
     self.api = EmailApiClient(tenantId: tenantId, apiUrl: apiUrl)
   }
 
-  public func challenge() async throws -> EmailChallengeResponse {
+  public func challenge(email: String? = nil) async throws -> EmailChallengeResponse {
     let challengeToken = try cache.requireChallengeToken()
 
-    return try await api.challenge(challengeToken: challengeToken)
+    return try await api.challenge(challengeToken: challengeToken, email: email)
   }
 
   public func verify(verificationCode: String) async throws -> VerifyResponse {

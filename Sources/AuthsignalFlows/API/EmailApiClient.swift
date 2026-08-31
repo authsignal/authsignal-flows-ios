@@ -3,11 +3,13 @@ import Foundation
 class EmailApiClient: BaseApiClient {
   func challenge(
     challengeToken: String,
-    email: String? = nil
+    email: String?
   ) async throws -> EmailChallengeResponse {
     let url = "\(apiUrl)/v1/client/flows/challenge/email-otp"
 
-    return try await postRequest(url: url, challengeToken: challengeToken)
+    let body = EmailChallengeRequest(email: email)
+
+    return try await postRequest(url: url, body: body, challengeToken: challengeToken)
   }
 
   func verify(
