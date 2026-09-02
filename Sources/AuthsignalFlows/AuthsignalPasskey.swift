@@ -18,65 +18,25 @@ public class AuthsignalPasskey {
     autofill: Bool = false,
     preferImmediatelyAvailableCredentials: Bool = true,
     syncCredentials: Bool = false
-  ) async -> AuthsignalResponse<VerifyResponse> {
-    guard let challengeToken = cache.challengeToken else {
-      return buildFlowNotInitializedResponse()
-    }
+  ) async throws -> VerifyResponse {
+    let challengeToken = try cache.requireChallengeToken()
 
-    let optsResponse = await api.authenticationOptions(
-      challengeToken: challengeToken
-    )
+    let opts = try await api.authenticationOptions(challengeToken: challengeToken)
 
-    guard let optsData = optsResponse.data else {
-      return AuthsignalResponse(
-        error: optsResponse.error ?? "Authentication options error.",
-        errorCode: optsResponse.errorCode
-      )
-    }
-
-    let credentialResponse = await passkeyManager.auth(
-      relyingPartyId: optsData.authenticationOptions.rpId,
-      challenge: optsData.authenticationOptions.challenge,
+    let credential = try await passkeyManager.auth(
+      relyingPartyId: opts.authenticationOptions.rpId,
+      challenge: opts.authenticationOptions.challenge,
       autofill: autofill,
-      preferImmediatelyAvailableCredentials:
-        preferImmediatelyAvailableCredentials
+      preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials
     )
 
-    if let errorCode = credentialResponse.errorCode {
-      return AuthsignalResponse(
-        error: "Credential response error.",
-        errorCode: errorCode
-      )
-    }
+    let verifyResponse = try await api.verify(challengeToken: challengeToken, credential: credential)
 
-    if let error = credentialResponse.error {
-      return AuthsignalResponse(error: error)
-    }
+    storeCredentialId(credentialId: credential.rawId, username: verifyResponse.user.username)
 
-    guard let credential = credentialResponse.data else {
-      return AuthsignalResponse(error: nil)
-    }
+    cache.challengeToken = verifyResponse.challengeToken
 
-    let verifyResponse = await api.verify(
-      challengeToken: challengeToken,
-      credential: credential
-    )
-
-    guard let verifyResponseData = verifyResponse.data else {
-      return AuthsignalResponse(
-        error: verifyResponse.error ?? "Verify error.",
-        errorCode: verifyResponse.errorCode
-      )
-    }
-
-    storeCredentialId(
-      credentialId: credential.rawId,
-      username: verifyResponseData.user.username
-    )
-
-    cache.challengeToken = verifyResponseData.challengeToken
-
-    return AuthsignalResponse(data: verifyResponseData)
+    return verifyResponse
   }
 
   public func cancel() {
@@ -100,14 +60,5 @@ public class AuthsignalPasskey {
         forKey: "\(passkeyLocalKey)_\(username)"
       )
     }
-  }
-
-  private func buildFlowNotInitializedResponse() -> AuthsignalResponse<
-    VerifyResponse
-  > {
-    return AuthsignalResponse(
-      error: "The flow has not been initialized.",
-      errorCode: "flow_not_initialized"
-    )
   }
 }
