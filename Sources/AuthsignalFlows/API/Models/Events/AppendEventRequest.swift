@@ -3,6 +3,7 @@
 enum UserVerificationEventType: String, Encodable {
   case passkeyCeremonyCancel = "PASSKEY_CEREMONY_CANCEL"
   case passkeyNotAvailable = "PASSKEY_NOT_AVAILABLE"
+  case passkeyAlreadyRegistered = "PASSKEY_ALREADY_REGISTERED"
   case passkeyError = "PASSKEY_ERROR"
 }
 

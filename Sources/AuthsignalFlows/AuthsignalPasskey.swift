@@ -17,6 +17,65 @@ public class AuthsignalPasskey {
     passkeyManager = PasskeyManager()
   }
 
+  public func register(
+    username: String? = nil,
+    displayName: String? = nil
+  ) async throws -> VerifyResponse {
+    let challengeToken = try cache.requireChallengeToken()
+
+    if !isSupported() {
+      events.appendEventInBackground(
+        challengeToken: challengeToken,
+        type: .passkeyNotAvailable,
+        verificationMethod: "PASSKEY",
+        data: ["reason": .string("NOT_SUPPORTED")]
+      )
+
+      throw AuthsignalError.apiError(message: "iOS version not supported.")
+    }
+
+    let opts = try await api.registrationOptions(
+      challengeToken: challengeToken,
+      username: username,
+      displayName: displayName
+    )
+
+    let options = opts.registrationOptions
+
+    isCancelRequested = false
+
+    let startedAt = Date()
+
+    let credential: PasskeyRegistrationCredential
+
+    do {
+      credential = try await passkeyManager.register(
+        relyingPartyId: options.rp.id,
+        challenge: options.challenge,
+        userId: options.user.id,
+        displayName: options.user.displayName.isEmpty ? options.user.name : options.user.displayName,
+        existingCredentialIds: options.excludeCredentials.map { $0.id }
+      )
+    } catch {
+      appendCeremonyFailureEvent(
+        error: error,
+        challengeToken: challengeToken,
+        startedAt: startedAt,
+        data: [:]
+      )
+
+      throw error
+    }
+
+    let registerResponse = try await api.register(challengeToken: challengeToken, credential: credential)
+
+    storeCredentialId(credentialId: credential.rawId, username: options.user.name)
+
+    cache.challengeToken = registerResponse.challengeToken
+
+    return registerResponse
+  }
+
   public func verify(
     autofill: Bool = false,
     preferImmediatelyAvailableCredentials: Bool = true,
@@ -55,8 +114,10 @@ public class AuthsignalPasskey {
         error: error,
         challengeToken: challengeToken,
         startedAt: startedAt,
-        autofill: autofill,
-        preferImmediatelyAvailableCredentials: preferImmediatelyAvailableCredentials
+        data: [
+          "autofill": .bool(autofill),
+          "preferImmediatelyAvailableCredentials": .bool(preferImmediatelyAvailableCredentials),
+        ]
       )
 
       throw error
@@ -97,14 +158,11 @@ public class AuthsignalPasskey {
     error: Error,
     challengeToken: String,
     startedAt: Date,
-    autofill: Bool,
-    preferImmediatelyAvailableCredentials: Bool
+    data extraData: [String: EventDataValue]
   ) {
-    var data: [String: EventDataValue] = [
-      "durationMs": .int(Int(Date().timeIntervalSince(startedAt) * 1000)),
-      "autofill": .bool(autofill),
-      "preferImmediatelyAvailableCredentials": .bool(preferImmediatelyAvailableCredentials),
-    ]
+    var data = extraData
+
+    data["durationMs"] = .int(Int(Date().timeIntervalSince(startedAt) * 1000))
 
     if case AuthsignalError.userCanceled = error {
       if isCancelRequested {
@@ -114,6 +172,17 @@ public class AuthsignalPasskey {
       events.appendEventInBackground(
         challengeToken: challengeToken,
         type: .passkeyCeremonyCancel,
+        verificationMethod: "PASSKEY",
+        data: data
+      )
+
+      return
+    }
+
+    if case AuthsignalError.matchedExcludedCredential = error {
+      events.appendEventInBackground(
+        challengeToken: challengeToken,
+        type: .passkeyAlreadyRegistered,
         verificationMethod: "PASSKEY",
         data: data
       )
