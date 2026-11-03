@@ -8,13 +8,15 @@ public class AuthsignalPasskey {
   private let passkeyManager: PasskeyManager
   private let passkeySignalManager = PasskeySignalManager()
   private let passkeyLocalKey = "@as_passkey_credential_id"
+  private let session: FlowSession
   private let cache = TokenCache.shared
   private var isCancelRequested = false
 
-  public init(tenantId: String, apiUrl: String) {
+  init(tenantId: String, apiUrl: String, session: FlowSession) {
     api = PasskeyApiClient(tenantId: tenantId, apiUrl: apiUrl)
     events = EventsApiClient(tenantId: tenantId, apiUrl: apiUrl)
     passkeyManager = PasskeyManager()
+    self.session = session
   }
 
   public func register(
@@ -81,20 +83,22 @@ public class AuthsignalPasskey {
     preferImmediatelyAvailableCredentials: Bool = true,
     syncCredentials: Bool = false
   ) async throws -> VerifyResponse {
-    let challengeToken = try cache.requireChallengeToken()
+    let opts = try await session.withChallengeToken { challengeToken in
+      if !isSupported() || (autofill && !isAutofillSupported()) {
+        events.appendEventInBackground(
+          challengeToken: challengeToken,
+          type: .passkeyNotAvailable,
+          verificationMethod: "PASSKEY",
+          data: ["reason": .string("NOT_SUPPORTED"), "autofill": .bool(autofill)]
+        )
 
-    if !isSupported() || (autofill && !isAutofillSupported()) {
-      events.appendEventInBackground(
-        challengeToken: challengeToken,
-        type: .passkeyNotAvailable,
-        verificationMethod: "PASSKEY",
-        data: ["reason": .string("NOT_SUPPORTED"), "autofill": .bool(autofill)]
-      )
+        throw AuthsignalError.apiError(message: "iOS version not supported.")
+      }
 
-      throw AuthsignalError.apiError(message: "iOS version not supported.")
+      return try await api.authenticationOptions(challengeToken: challengeToken)
     }
 
-    let opts = try await api.authenticationOptions(challengeToken: challengeToken)
+    let challengeToken = try cache.requireChallengeToken()
 
     isCancelRequested = false
 

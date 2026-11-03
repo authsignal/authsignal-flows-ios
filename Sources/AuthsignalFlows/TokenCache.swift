@@ -12,6 +12,8 @@ public class TokenCache {
     }
   }
 
+  var codeVerifier: String? = nil
+
   public static let shared = TokenCache()
 
   func requireChallengeToken() throws -> String {

@@ -4,16 +4,18 @@ import UIKit
 
 public class AuthsignalSms {
   private let api: SmsApiClient
+  private let session: FlowSession
   private let cache = TokenCache.shared
 
-  public init(tenantId: String, apiUrl: String) {
+  init(tenantId: String, apiUrl: String, session: FlowSession) {
     self.api = SmsApiClient(tenantId: tenantId, apiUrl: apiUrl)
+    self.session = session
   }
 
   public func challenge(phoneNumber: String? = nil) async throws -> SmsChallengeResponse {
-    let challengeToken = try cache.requireChallengeToken()
-
-    return try await api.challenge(challengeToken: challengeToken, phoneNumber: phoneNumber)
+    return try await session.withChallengeToken { challengeToken in
+      try await api.challenge(challengeToken: challengeToken, phoneNumber: phoneNumber)
+    }
   }
 
   public func verify(verificationCode: String) async throws -> VerifyResponse {

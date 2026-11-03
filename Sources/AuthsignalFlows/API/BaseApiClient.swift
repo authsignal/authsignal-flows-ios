@@ -52,6 +52,29 @@ class BaseApiClient {
     return try await performRequest(request: request)
   }
 
+  func postRequest<T: Decodable, TBody: Encodable>(
+    url: String,
+    body: TBody
+  ) async throws -> T {
+    var request = URLRequest(url: URL(string: url)!)
+
+    request.httpMethod = "POST"
+
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+    request.setValue(tenantId, forHTTPHeaderField: "X-Authsignal-Tenant")
+
+    let encoder = JSONEncoder()
+
+    if let encodedBody = try? encoder.encode(body) {
+      request.httpBody = encodedBody
+    }
+
+    applyDefaultHeaders(to: &request)
+
+    return try await performRequest(request: request)
+  }
+
   private func applyDefaultHeaders(to request: inout URLRequest) {
     AuthsignalRequestMetadata.headers(tenantId: tenantId).forEach { name, value in
       request.setValue(value, forHTTPHeaderField: name)

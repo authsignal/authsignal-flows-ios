@@ -4,16 +4,18 @@ import UIKit
 
 public class AuthsignalEmail {
   private let api: EmailApiClient
+  private let session: FlowSession
   private let cache = TokenCache.shared
 
-  public init(tenantId: String, apiUrl: String) {
+  init(tenantId: String, apiUrl: String, session: FlowSession) {
     self.api = EmailApiClient(tenantId: tenantId, apiUrl: apiUrl)
+    self.session = session
   }
 
   public func challenge(email: String? = nil) async throws -> EmailChallengeResponse {
-    let challengeToken = try cache.requireChallengeToken()
-
-    return try await api.challenge(challengeToken: challengeToken, email: email)
+    return try await session.withChallengeToken { challengeToken in
+      try await api.challenge(challengeToken: challengeToken, email: email)
+    }
   }
 
   public func verify(verificationCode: String) async throws -> VerifyResponse {
