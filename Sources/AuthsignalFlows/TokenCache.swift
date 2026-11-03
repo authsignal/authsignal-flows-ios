@@ -13,8 +13,14 @@ public class TokenCache {
   }
 
   var codeVerifier: String? = nil
+  var isCompleted = false
 
   public static let shared = TokenCache()
+
+  func update(with response: VerifyResponse) {
+    challengeToken = response.challengeToken
+    isCompleted = response.action.state == .challengeSucceeded
+  }
 
   func requireChallengeToken() throws -> String {
     guard let challengeToken else {

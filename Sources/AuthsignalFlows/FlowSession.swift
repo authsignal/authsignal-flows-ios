@@ -32,7 +32,7 @@ final class FlowSession {
   }
 
   private func currentOrNewChallengeToken() async throws -> String {
-    if let challengeToken = cache.challengeToken {
+    if let challengeToken = cache.challengeToken, !cache.isCompleted {
       return challengeToken
     }
 
@@ -54,6 +54,7 @@ final class FlowSession {
 
     cache.challengeToken = response.challengeToken
     cache.codeVerifier = codeVerifier
+    cache.isCompleted = false
 
     return response.challengeToken
   }

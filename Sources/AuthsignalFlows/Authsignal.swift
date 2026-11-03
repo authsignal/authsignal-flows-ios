@@ -20,5 +20,6 @@ public class AuthsignalFlows {
   public func setChallengeToken(challengeToken: String) {
     TokenCache.shared.challengeToken = challengeToken
     TokenCache.shared.codeVerifier = nil
+    TokenCache.shared.isCompleted = false
   }
 }

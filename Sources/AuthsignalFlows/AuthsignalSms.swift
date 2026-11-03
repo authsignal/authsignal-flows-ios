@@ -23,7 +23,7 @@ public class AuthsignalSms {
 
     let verifyResponse = try await api.verify(challengeToken: challengeToken, verificationCode: verificationCode)
 
-    cache.challengeToken = verifyResponse.challengeToken
+    cache.update(with: verifyResponse)
 
     return verifyResponse
   }

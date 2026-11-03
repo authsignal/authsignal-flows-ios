@@ -73,7 +73,7 @@ public class AuthsignalPasskey {
 
     storeCredentialId(credentialId: credential.rawId, username: options.user.name)
 
-    cache.challengeToken = registerResponse.challengeToken
+    cache.update(with: registerResponse)
 
     return registerResponse
   }
@@ -131,7 +131,7 @@ public class AuthsignalPasskey {
 
     storeCredentialId(credentialId: credential.rawId, username: verifyResponse.user.username)
 
-    cache.challengeToken = verifyResponse.challengeToken
+    cache.update(with: verifyResponse)
 
     return verifyResponse
   }
