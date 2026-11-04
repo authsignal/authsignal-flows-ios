@@ -6,4 +6,5 @@ struct SdkErrorCodes {
   static let unknownCredential = "unknown_credential"
   static let createKeyPairFailed = "create_key_pair_failed"
   static let invalidPinFormat = "invalid_pin_format"
+  static let invalidPin = "invalid_pin"
 }

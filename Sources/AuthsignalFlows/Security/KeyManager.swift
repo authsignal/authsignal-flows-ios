@@ -1,0 +1,147 @@
+import Foundation
+import Security
+
+class KeyManager {
+  private let keyTag: String
+
+  init(keySuffix: String) {
+    keyTag = "authsignal_signing_key_\(keySuffix)"
+  }
+
+  func getKey(username: String? = nil) -> SecKey? {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassKey,
+      kSecAttrApplicationTag as String: getUserKeyTag(username: username).data(using: .utf8)!,
+      kSecAttrKeyType as String: kSecAttrKeyTypeEC,
+      kSecReturnRef as String: true,
+    ]
+
+    var item: CFTypeRef?
+
+    let status = SecItemCopyMatching(query as CFDictionary, &item)
+
+    guard status == errSecSuccess else {
+      return nil
+    }
+
+    return (item as! SecKey)
+  }
+
+  func getOrCreatePublicKey(
+    keychainAccess: KeychainAccess,
+    userPresenceRequired: Bool = false,
+    username: String? = nil
+  ) -> String? {
+    if let publicKey = getPublicKey(username: username) {
+      return publicKey
+    }
+
+    return createKey(keychainAccess: keychainAccess, userPresenceRequired: userPresenceRequired, username: username)
+  }
+
+  func getPublicKey(username: String? = nil) -> String? {
+    guard let secKey = getKey(username: username) else {
+      return nil
+    }
+
+    return derivePublicKey(secKey: secKey)
+  }
+
+  func deleteKeyPair(username: String? = nil) -> Bool {
+    let query: [String: Any] = [
+      kSecClass as String: kSecClassKey,
+      kSecAttrApplicationTag as String: getUserKeyTag(username: username).data(using: .utf8)!,
+      kSecAttrKeyType as String: kSecAttrKeyTypeEC,
+    ]
+
+    return SecItemDelete(query as CFDictionary) == errSecSuccess
+  }
+
+  private func derivePublicKey(secKey: SecKey) -> String? {
+    guard let publicKey = SecKeyCopyPublicKey(secKey) else {
+      Logger.error("Error copying public key")
+
+      return nil
+    }
+
+    var error: Unmanaged<CFError>?
+
+    guard let cfdata = SecKeyCopyExternalRepresentation(publicKey, &error) else {
+      Logger.error("Error exporting public key")
+
+      return nil
+    }
+
+    let publicKeyDER = createSubjectPublicKeyInfo(rawPublicKeyData: cfdata as Data)
+
+    return publicKeyDER.base64EncodedString()
+  }
+
+  private func createKey(
+    keychainAccess: KeychainAccess,
+    userPresenceRequired: Bool,
+    username: String?
+  ) -> String? {
+    let flags: SecAccessControlCreateFlags = userPresenceRequired ? [.privateKeyUsage, .userPresence] : [.privateKeyUsage]
+
+    let access = SecAccessControlCreateWithFlags(
+      kCFAllocatorDefault,
+      getAccessibilitySecAttr(keychainAccess: keychainAccess),
+      flags,
+      nil)!
+
+    let attributes: [String: Any] = [
+      kSecAttrKeyType as String: kSecAttrKeyTypeEC,
+      kSecAttrKeySizeInBits as String: 256,
+      kSecAttrTokenID as String: kSecAttrTokenIDSecureEnclave,
+      kSecPrivateKeyAttrs as String: [
+        kSecAttrIsPermanent as String: true,
+        kSecAttrApplicationTag as String: getUserKeyTag(username: username).data(using: .utf8)!,
+        kSecAttrAccessControl as String: access,
+      ] as [String: Any],
+    ]
+
+    var error: Unmanaged<CFError>?
+
+    guard let privateKey = SecKeyCreateRandomKey(attributes as CFDictionary, &error) else {
+      let message = error.map { "\($0.takeRetainedValue())" } ?? "unknown error"
+
+      Logger.error("Error creating key pair: \(message)")
+
+      return nil
+    }
+
+    return derivePublicKey(secKey: privateKey)
+  }
+
+  private func createSubjectPublicKeyInfo(rawPublicKeyData: Data) -> Data {
+    let secp256r1Header = Data(_: [
+      0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08,
+      0x2a,
+      0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03, 0x42, 0x00,
+    ])
+
+    return secp256r1Header + rawPublicKeyData
+  }
+
+  private func getAccessibilitySecAttr(keychainAccess: KeychainAccess) -> CFString {
+    switch keychainAccess {
+    case .afterFirstUnlock:
+      return kSecAttrAccessibleAfterFirstUnlock
+    case .afterFirstUnlockThisDeviceOnly:
+      return kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+    case .whenUnlockedThisDeviceOnly:
+      return kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+    case .whenUnlocked:
+      return kSecAttrAccessibleWhenUnlocked
+    case .whenPasscodeSetThisDeviceOnly:
+      return kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly
+    }
+  }
+
+  private func getUserKeyTag(username: String?) -> String {
+    let cleanUsername = username?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+    return cleanUsername.map { "\(keyTag)_\($0)" } ?? keyTag
+  }
+}

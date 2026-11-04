@@ -11,6 +11,9 @@ public enum AuthsignalError: Error, LocalizedError {
   case invalidCode(message: String)
   case userCanceled
   case matchedExcludedCredential
+  case credentialNotFound
+  case invalidPinFormat
+  case invalidPin
 
   public var code: String {
     switch self {
@@ -19,6 +22,9 @@ public enum AuthsignalError: Error, LocalizedError {
     case .invalidCode: return "invalid_code"
     case .userCanceled: return "user_canceled"
     case .matchedExcludedCredential: return "matched_excluded_credential"
+    case .credentialNotFound: return "credential_not_found"
+    case .invalidPinFormat: return "invalid_pin_format"
+    case .invalidPin: return "invalid_pin"
     case .networkError: return "network_error"
     case .apiError: return "api_error"
     case .decodingError: return "decoding_error"
@@ -38,6 +44,12 @@ public enum AuthsignalError: Error, LocalizedError {
       return "The request was canceled by the user or the device has no passkeys available."
     case .matchedExcludedCredential:
       return "An existing credential is already available for this device."
+    case .credentialNotFound:
+      return "No credential found on this device."
+    case .invalidPinFormat:
+      return "The PIN must be at least 4 digits."
+    case .invalidPin:
+      return "The PIN is incorrect."
     case .networkError(let message),
          .apiError(let message),
          .decodingError(let message),

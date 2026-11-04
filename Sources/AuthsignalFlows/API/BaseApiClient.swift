@@ -70,6 +70,40 @@ class BaseApiClient {
     _ = try await send(request: request)
   }
 
+  func getRequestWithBasicAuth<T: Decodable>(url: String) async throws -> T {
+    var request = URLRequest(url: URL(string: url)!)
+
+    request.httpMethod = "GET"
+
+    request.setValue(basicAuth(), forHTTPHeaderField: "Authorization")
+
+    applyDefaultHeaders(to: &request)
+
+    return try await performRequest(request: request)
+  }
+
+  func postRequestWithBasicAuth<T: Decodable, TBody: Encodable>(url: String, body: TBody) async throws -> T {
+    var request = URLRequest(url: URL(string: url)!)
+
+    request.httpMethod = "POST"
+
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+    request.setValue(basicAuth(), forHTTPHeaderField: "Authorization")
+
+    if let encodedBody = try? JSONEncoder().encode(body) {
+      request.httpBody = encodedBody
+    }
+
+    applyDefaultHeaders(to: &request)
+
+    return try await performRequest(request: request)
+  }
+
+  private func basicAuth() -> String {
+    return "Basic \(Data("\(tenantId):".utf8).base64EncodedString())"
+  }
+
   private func buildTenantRequest<TBody: Encodable>(url: String, body: TBody) -> URLRequest {
     var request = URLRequest(url: URL(string: url)!)
 

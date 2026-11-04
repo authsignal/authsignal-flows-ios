@@ -7,6 +7,7 @@ public class AuthsignalFlows {
   public let sms: AuthsignalSms
   public let whatsapp: AuthsignalWhatsapp
   public let passkey: AuthsignalPasskey
+  public let inapp: AuthsignalInApp
   public let session: AuthsignalSession
 
   public init(tenantId: String, apiUrl: String, clientId: String? = nil) {
@@ -18,6 +19,7 @@ public class AuthsignalFlows {
     sms = AuthsignalSms(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
     whatsapp = AuthsignalWhatsapp(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
     passkey = AuthsignalPasskey(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
+    inapp = AuthsignalInApp(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
   }
 
   public func setChallengeToken(challengeToken: String) {
