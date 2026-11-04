@@ -2,17 +2,19 @@ import CryptoKit
 import Foundation
 import Security
 
-final class FlowSession {
+final class FlowContext {
   // Temporary until the sign-in action code can be configured on the app client
   private static let actionCode = "signInOrSignUpV2"
 
-  private let api: SessionApiClient
+  private let api: FlowApiClient
   private let clientId: String?
+  private let session: AuthsignalSession
   private let cache = TokenCache.shared
 
-  init(tenantId: String, apiUrl: String, clientId: String?) {
-    self.api = SessionApiClient(tenantId: tenantId, apiUrl: apiUrl)
+  init(tenantId: String, apiUrl: String, clientId: String?, session: AuthsignalSession) {
+    self.api = FlowApiClient(tenantId: tenantId, apiUrl: apiUrl)
     self.clientId = clientId
+    self.session = session
   }
 
   func withChallengeToken<T>(_ operation: (String) async throws -> T) async throws -> T {
@@ -20,15 +22,33 @@ final class FlowSession {
 
     do {
       return try await operation(challengeToken)
-    } catch AuthsignalError.sessionExpired {
-      guard let clientId else {
-        throw AuthsignalError.sessionExpired
+    } catch AuthsignalError.flowExpired {
+      // Only flows started by the SDK have a code verifier; others came from 'setChallengeToken'
+      guard let clientId, cache.codeVerifier != nil else {
+        throw AuthsignalError.flowExpired
       }
 
-      Logger.info("The session has expired. Starting a new session.")
+      Logger.info("The flow has expired. Starting a new flow.")
 
-      return try await operation(try await startSession(clientId: clientId))
+      return try await operation(try await startFlow(clientId: clientId))
     }
+  }
+
+  func update(with response: VerifyResponse) async throws {
+    cache.update(with: response)
+
+    // Flows started with 'setChallengeToken' are verified by the integrator's backend
+    guard response.action.state == .challengeSucceeded, let codeVerifier = cache.codeVerifier else {
+      return
+    }
+
+    let verifyResponse = try await api.verify(challengeToken: response.challengeToken, codeVerifier: codeVerifier)
+
+    guard let tokens = verifyResponse.session else {
+      throw AuthsignalError.unexpected(code: "session_unavailable", message: "The flow completed without a session.")
+    }
+
+    await session.save(tokens)
   }
 
   private func currentOrNewChallengeToken() async throws -> String {
@@ -40,10 +60,10 @@ final class FlowSession {
       return try cache.requireChallengeToken()
     }
 
-    return try await startSession(clientId: clientId)
+    return try await startFlow(clientId: clientId)
   }
 
-  private func startSession(clientId: String) async throws -> String {
+  private func startFlow(clientId: String) async throws -> String {
     let codeVerifier = try Self.generateCodeVerifier()
 
     let response = try await api.start(

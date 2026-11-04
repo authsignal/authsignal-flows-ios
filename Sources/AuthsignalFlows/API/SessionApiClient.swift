@@ -1,15 +1,19 @@
 import Foundation
 
 class SessionApiClient: BaseApiClient {
-  func start(
-    actionCode: String,
-    clientId: String,
-    codeChallenge: String
-  ) async throws -> StartSessionResponse {
-    let url = "\(apiUrl)/v1/client/flows/start"
+  func refresh(refreshToken: String) async throws -> SessionTokens {
+    let url = "\(apiUrl)/v1/client/sessions/refresh"
 
-    let body = StartSessionRequest(actionCode: actionCode, clientId: clientId, codeChallenge: codeChallenge)
+    let body = RefreshTokenRequest(refreshToken: refreshToken)
 
     return try await postRequest(url: url, body: body)
+  }
+
+  func revoke(refreshToken: String) async throws {
+    let url = "\(apiUrl)/v1/client/sessions/revoke"
+
+    let body = RefreshTokenRequest(refreshToken: refreshToken)
+
+    try await postRequestWithoutResponse(url: url, body: body)
   }
 }

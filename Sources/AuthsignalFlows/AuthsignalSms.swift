@@ -4,16 +4,16 @@ import UIKit
 
 public class AuthsignalSms {
   private let api: SmsApiClient
-  private let session: FlowSession
+  private let flow: FlowContext
   private let cache = TokenCache.shared
 
-  init(tenantId: String, apiUrl: String, session: FlowSession) {
+  init(tenantId: String, apiUrl: String, flow: FlowContext) {
     self.api = SmsApiClient(tenantId: tenantId, apiUrl: apiUrl)
-    self.session = session
+    self.flow = flow
   }
 
   public func challenge(phoneNumber: String? = nil) async throws -> SmsChallengeResponse {
-    return try await session.withChallengeToken { challengeToken in
+    return try await flow.withChallengeToken { challengeToken in
       try await api.challenge(challengeToken: challengeToken, phoneNumber: phoneNumber)
     }
   }
@@ -23,7 +23,7 @@ public class AuthsignalSms {
 
     let verifyResponse = try await api.verify(challengeToken: challengeToken, verificationCode: verificationCode)
 
-    cache.update(with: verifyResponse)
+    try await flow.update(with: verifyResponse)
 
     return verifyResponse
   }

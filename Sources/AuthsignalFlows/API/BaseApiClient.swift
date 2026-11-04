@@ -56,6 +56,21 @@ class BaseApiClient {
     url: String,
     body: TBody
   ) async throws -> T {
+    let request = buildTenantRequest(url: url, body: body)
+
+    return try await performRequest(request: request)
+  }
+
+  func postRequestWithoutResponse<TBody: Encodable>(
+    url: String,
+    body: TBody
+  ) async throws {
+    let request = buildTenantRequest(url: url, body: body)
+
+    _ = try await send(request: request)
+  }
+
+  private func buildTenantRequest<TBody: Encodable>(url: String, body: TBody) -> URLRequest {
     var request = URLRequest(url: URL(string: url)!)
 
     request.httpMethod = "POST"
@@ -72,7 +87,7 @@ class BaseApiClient {
 
     applyDefaultHeaders(to: &request)
 
-    return try await performRequest(request: request)
+    return request
   }
 
   private func applyDefaultHeaders(to request: inout URLRequest) {
@@ -82,6 +97,20 @@ class BaseApiClient {
   }
 
   private func performRequest<T: Decodable>(request: URLRequest) async throws -> T {
+    let data = try await send(request: request)
+
+    do {
+      return try JSONDecoder().decode(T.self, from: data)
+    } catch let decodingError {
+      let detail = Self.describe(decodingError)
+
+      Logger.error("API response decoding error for \(T.self): \(detail)")
+
+      throw AuthsignalError.decodingError(message: "Decoding error: \(detail)")
+    }
+  }
+
+  private func send(request: URLRequest) async throws -> Data {
     let data: Data
     let response: URLResponse
 
@@ -96,7 +125,7 @@ class BaseApiClient {
     let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any]
 
     if let httpResponse = response as? HTTPURLResponse,
-      httpResponse.statusCode != 200
+      !(200..<300).contains(httpResponse.statusCode)
     {
       let errorCode = json?["errorCode"] as? String ?? "unexpected_error"
       let errorDescription = json?["errorDescription"] as? String ?? "Unexpected error."
@@ -113,15 +142,7 @@ class BaseApiClient {
       throw AuthsignalError.fromApi(code: errorCode, message: errorDescription)
     }
 
-    do {
-      return try JSONDecoder().decode(T.self, from: data)
-    } catch let decodingError {
-      let detail = Self.describe(decodingError)
-
-      Logger.error("API response decoding error for \(T.self): \(detail)")
-
-      throw AuthsignalError.decodingError(message: "Decoding error: \(detail)")
-    }
+    return data
   }
 
   private static func describe(_ error: Error) -> String {

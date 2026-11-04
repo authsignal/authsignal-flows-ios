@@ -3,7 +3,7 @@ import Foundation
 
 public enum AuthsignalError: Error, LocalizedError {
   case flowNotInitialized
-  case sessionExpired
+  case flowExpired
   case networkError(message: String)
   case apiError(message: String)
   case decodingError(message: String)
@@ -15,7 +15,7 @@ public enum AuthsignalError: Error, LocalizedError {
   public var code: String {
     switch self {
     case .flowNotInitialized: return "flow_not_initialized"
-    case .sessionExpired: return "session_expired"
+    case .flowExpired: return "flow_expired"
     case .invalidCode: return "invalid_code"
     case .userCanceled: return "user_canceled"
     case .matchedExcludedCredential: return "matched_excluded_credential"
@@ -30,8 +30,8 @@ public enum AuthsignalError: Error, LocalizedError {
     switch self {
     case .flowNotInitialized:
       return "The flow has not been initialized. Provide a client ID or call 'setChallengeToken' first."
-    case .sessionExpired:
-      return "The session has expired. Start a new challenge to continue."
+    case .flowExpired:
+      return "The flow has expired. Start a new challenge to continue."
     case .invalidCode(let message):
       return message
     case .userCanceled:
@@ -51,7 +51,7 @@ public enum AuthsignalError: Error, LocalizedError {
     case "invalid_code":
       return .invalidCode(message: message)
     case "invalid_token":
-      return .sessionExpired
+      return .flowExpired
     default:
       return .unexpected(code: code, message: message)
     }

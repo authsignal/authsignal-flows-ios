@@ -8,15 +8,15 @@ public class AuthsignalPasskey {
   private let passkeyManager: PasskeyManager
   private let passkeySignalManager = PasskeySignalManager()
   private let passkeyLocalKey = "@as_passkey_credential_id"
-  private let session: FlowSession
+  private let flow: FlowContext
   private let cache = TokenCache.shared
   private var isCancelRequested = false
 
-  init(tenantId: String, apiUrl: String, session: FlowSession) {
+  init(tenantId: String, apiUrl: String, flow: FlowContext) {
     api = PasskeyApiClient(tenantId: tenantId, apiUrl: apiUrl)
     events = EventsApiClient(tenantId: tenantId, apiUrl: apiUrl)
     passkeyManager = PasskeyManager()
-    self.session = session
+    self.flow = flow
   }
 
   public func register(
@@ -73,7 +73,7 @@ public class AuthsignalPasskey {
 
     storeCredentialId(credentialId: credential.rawId, username: options.user.name)
 
-    cache.update(with: registerResponse)
+    try await flow.update(with: registerResponse)
 
     return registerResponse
   }
@@ -83,7 +83,7 @@ public class AuthsignalPasskey {
     preferImmediatelyAvailableCredentials: Bool = true,
     syncCredentials: Bool = false
   ) async throws -> VerifyResponse {
-    let opts = try await session.withChallengeToken { challengeToken in
+    let opts = try await flow.withChallengeToken { challengeToken in
       if !isSupported() || (autofill && !isAutofillSupported()) {
         events.appendEventInBackground(
           challengeToken: challengeToken,
@@ -131,7 +131,7 @@ public class AuthsignalPasskey {
 
     storeCredentialId(credentialId: credential.rawId, username: verifyResponse.user.username)
 
-    cache.update(with: verifyResponse)
+    try await flow.update(with: verifyResponse)
 
     return verifyResponse
   }

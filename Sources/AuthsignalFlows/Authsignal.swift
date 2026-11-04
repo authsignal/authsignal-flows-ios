@@ -7,14 +7,17 @@ public class AuthsignalFlows {
   public let sms: AuthsignalSms
   public let whatsapp: AuthsignalWhatsapp
   public let passkey: AuthsignalPasskey
+  public let session: AuthsignalSession
 
   public init(tenantId: String, apiUrl: String, clientId: String? = nil) {
-    let session = FlowSession(tenantId: tenantId, apiUrl: apiUrl, clientId: clientId)
+    session = AuthsignalSession(tenantId: tenantId, apiUrl: apiUrl)
 
-    email = AuthsignalEmail(tenantId: tenantId, apiUrl: apiUrl, session: session)
-    sms = AuthsignalSms(tenantId: tenantId, apiUrl: apiUrl, session: session)
-    whatsapp = AuthsignalWhatsapp(tenantId: tenantId, apiUrl: apiUrl)
-    passkey = AuthsignalPasskey(tenantId: tenantId, apiUrl: apiUrl, session: session)
+    let flow = FlowContext(tenantId: tenantId, apiUrl: apiUrl, clientId: clientId, session: session)
+
+    email = AuthsignalEmail(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
+    sms = AuthsignalSms(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
+    whatsapp = AuthsignalWhatsapp(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
+    passkey = AuthsignalPasskey(tenantId: tenantId, apiUrl: apiUrl, flow: flow)
   }
 
   public func setChallengeToken(challengeToken: String) {
