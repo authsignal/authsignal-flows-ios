@@ -11,10 +11,6 @@ public actor AuthsignalSession {
     api = SessionApiClient(tenantId: tenantId, apiUrl: apiUrl)
   }
 
-  /// Returns a valid access token, refreshing it first if it's about to expire.
-  ///
-  /// - Returns: `nil` if there is no session, or if the session can no longer be refreshed.
-  /// - Throws: `AuthsignalError.networkError` if a refresh fails to reach the API. The session is kept.
   public func getAccessToken() async throws -> String? {
     if let refreshTask {
       return try await refreshTask.value?.accessToken
@@ -31,7 +27,6 @@ public actor AuthsignalSession {
     return try await refresh(storedSession)?.accessToken
   }
 
-  /// Ends the session. Local state is always cleared, even if the session can't be revoked on the server.
   public func revoke() async {
     _ = try? await refreshTask?.value
 
@@ -72,7 +67,6 @@ public actor AuthsignalSession {
 
       return refreshedSession
     } catch AuthsignalError.flowExpired {
-      // The API reports a revoked or expired refresh token as 'invalid_token'
       store.clear()
 
       return nil

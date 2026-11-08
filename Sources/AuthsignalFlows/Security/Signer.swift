@@ -23,12 +23,4 @@ enum Signer {
 
     return (signature as Data).base64EncodedString()
   }
-
-  static func signWithTimeBasedMessage(privateKey: SecKey) throws -> String {
-    let secondsSinceEpoch = Double(Date().timeIntervalSince1970)
-
-    let message = String(floor(secondsSinceEpoch / (60 * 10)))
-
-    return try sign(message: message, privateKey: privateKey)
-  }
 }

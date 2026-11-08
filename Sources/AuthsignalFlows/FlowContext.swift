@@ -3,7 +3,6 @@ import Foundation
 import Security
 
 final class FlowContext {
-  // Temporary until the sign-in action code can be configured on the app client
   private static let actionCode = "signInOrSignUpV2"
 
   private let api: FlowApiClient
@@ -23,7 +22,6 @@ final class FlowContext {
     do {
       return try await operation(challengeToken)
     } catch AuthsignalError.flowExpired {
-      // Only flows started by the SDK have a code verifier; others came from 'setChallengeToken'
       guard let clientId, cache.codeVerifier != nil else {
         throw AuthsignalError.flowExpired
       }
@@ -37,7 +35,6 @@ final class FlowContext {
   func update(with response: VerifyResponse) async throws {
     cache.update(with: response)
 
-    // Flows started with 'setChallengeToken' are verified by the integrator's backend
     guard response.action.state == .challengeSucceeded, let codeVerifier = cache.codeVerifier else {
       return
     }

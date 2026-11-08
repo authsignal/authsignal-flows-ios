@@ -9,14 +9,6 @@ class InAppApiClient: BaseApiClient {
     return try await getRequestWithBasicAuth(url: url)
   }
 
-  func removeCredential(publicKey: String, signature: String) async throws -> RemoveCredentialResponse {
-    let url = "\(apiUrl)/v1/client/user-authenticators/in-app/remove"
-
-    let body = SignedCredentialRequest(publicKey: publicKey, signature: signature)
-
-    return try await postRequestWithBasicAuth(url: url, body: body)
-  }
-
   func addCredential(challengeToken: String, publicKey: String, deviceName: String) async throws -> VerifyResponse {
     let url = "\(apiUrl)/v1/client/flows/user-authenticators/in-app"
 

@@ -71,33 +71,61 @@ class BaseApiClient {
   }
 
   func getRequestWithBasicAuth<T: Decodable>(url: String) async throws -> T {
+    let request = buildBasicAuthRequest(method: "GET", url: url, body: nil as String?)
+
+    return try await performRequest(request: request)
+  }
+
+  func postRequestWithBasicAuth<T: Decodable>(url: String) async throws -> T {
+    let request = buildBasicAuthRequest(method: "POST", url: url, body: nil as String?)
+
+    return try await performRequest(request: request)
+  }
+
+  func postRequestWithBasicAuth<T: Decodable, TBody: Encodable>(url: String, body: TBody) async throws -> T {
+    let request = buildBasicAuthRequest(method: "POST", url: url, body: body)
+
+    return try await performRequest(request: request)
+  }
+
+  func patchRequestWithBasicAuth<T: Decodable, TBody: Encodable>(url: String, body: TBody) async throws -> T {
+    let request = buildBasicAuthRequest(method: "PATCH", url: url, body: body)
+
+    return try await performRequest(request: request)
+  }
+
+  func getRequest<T: Decodable>(url: String, headers: [String: String]) async throws -> T {
     var request = URLRequest(url: URL(string: url)!)
 
     request.httpMethod = "GET"
 
-    request.setValue(basicAuth(), forHTTPHeaderField: "Authorization")
+    request.setValue(tenantId, forHTTPHeaderField: "X-Authsignal-Tenant")
+
+    headers.forEach { name, value in
+      request.setValue(value, forHTTPHeaderField: name)
+    }
 
     applyDefaultHeaders(to: &request)
 
     return try await performRequest(request: request)
   }
 
-  func postRequestWithBasicAuth<T: Decodable, TBody: Encodable>(url: String, body: TBody) async throws -> T {
+  private func buildBasicAuthRequest<TBody: Encodable>(method: String, url: String, body: TBody?) -> URLRequest {
     var request = URLRequest(url: URL(string: url)!)
 
-    request.httpMethod = "POST"
-
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.httpMethod = method
 
     request.setValue(basicAuth(), forHTTPHeaderField: "Authorization")
 
-    if let encodedBody = try? JSONEncoder().encode(body) {
+    if let body, let encodedBody = try? JSONEncoder().encode(body) {
+      request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
       request.httpBody = encodedBody
     }
 
     applyDefaultHeaders(to: &request)
 
-    return try await performRequest(request: request)
+    return request
   }
 
   private func basicAuth() -> String {

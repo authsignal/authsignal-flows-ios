@@ -7,7 +7,6 @@ class SessionStore {
   private let installedKey = "@as_session_store_installed"
 
   init() {
-    // Keychain items survive the app being deleted, so clear any session left by a previous install
     if !UserDefaults.standard.bool(forKey: installedKey) {
       clear()
 
