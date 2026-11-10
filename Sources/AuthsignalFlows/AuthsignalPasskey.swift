@@ -142,6 +142,20 @@ public class AuthsignalPasskey {
     passkeyManager.cancelRequest()
   }
 
+  public func shouldPromptToCreatePasskey(username: String? = nil) async throws -> Bool {
+    guard let credentialId = getStoredCredentialId(username: username) else {
+      return true
+    }
+
+    do {
+      _ = try await api.getPasskeyAuthenticator(credentialId: credentialId)
+
+      return false
+    } catch let error as AuthsignalError where error.code == SdkErrorCodes.invalidCredential {
+      return true
+    }
+  }
+
   public func isSupported() -> Bool {
     if #available(iOS 15.0, *) {
       return true
@@ -203,6 +217,12 @@ public class AuthsignalPasskey {
       verificationMethod: "PASSKEY",
       data: data
     )
+  }
+
+  private func getStoredCredentialId(username: String?) -> String? {
+    let key = username.map { "\(passkeyLocalKey)_\($0)" } ?? passkeyLocalKey
+
+    return UserDefaults.standard.string(forKey: key)
   }
 
   private func storeCredentialId(credentialId: String, username: String?) {

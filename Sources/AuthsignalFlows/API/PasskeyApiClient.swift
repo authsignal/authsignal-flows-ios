@@ -34,4 +34,10 @@ class PasskeyApiClient: BaseApiClient {
 
     return try await postRequest(url: url, body: body, challengeToken: challengeToken)
   }
+
+  func getPasskeyAuthenticator(credentialId: String) async throws -> PasskeyAuthenticatorResponse {
+    let url = "\(apiUrl)/v1/client/user-authenticators/passkey?credentialId=\(credentialId)"
+
+    return try await getRequestWithBasicAuth(url: url)
+  }
 }
